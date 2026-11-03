@@ -1098,6 +1098,34 @@ class Runtime:
                 self._capture_heads = None
 
 
+    def live_stream(self, ids, max_new=0, cancel=None):
+        """Every neuron's activation at each token, as the model reads `ids` and then greedily writes up to max_new more:
+        yields (position, token id, float32 [layers, inter], is_prompt) one token at a time, the prompt first."""
+        self.ensure_loaded()
+        with self.lock, torch.inference_mode():
+            eos = self.tok.convert_tokens_to_ids("<|im_end|>")
+            try:
+                self._capture_full = {}
+                out = self.model(input_ids=torch.tensor([ids], device=self.dev), use_cache=True, logits_to_keep=1)
+                acts = torch.stack([self._capture_full[l] for l in sorted(self._capture_full)]).numpy()  # [L, T, N]
+                for p, t in enumerate(ids):
+                    if cancel is not None and cancel.is_set():
+                        return
+                    yield p, t, acts[:, p], True
+                pos = len(ids)
+                for _ in range(max_new):
+                    nxt = int(out.logits[0, -1].argmax())
+                    if nxt == eos or (cancel is not None and cancel.is_set()):
+                        return
+                    self._capture_full = {}
+                    out = self.model(input_ids=torch.tensor([[nxt]], device=self.dev), past_key_values=out.past_key_values,
+                                     use_cache=True, logits_to_keep=1)
+                    yield pos, nxt, torch.stack([self._capture_full[l][-1] for l in sorted(self._capture_full)]).numpy(), False
+                    pos += 1
+            finally:
+                self._capture_full = None
+
+
 def make_runtime(stats_dir):
     """The live model on the chosen backend: MLX (runtime_mlx.py) or torch (this file)."""
     import platform
@@ -1114,3 +1142,4 @@ def make_runtime(stats_dir):
         from runtime_mlx import MLXRuntime
         return MLXRuntime(stats_dir)
     return Runtime(stats_dir)
+

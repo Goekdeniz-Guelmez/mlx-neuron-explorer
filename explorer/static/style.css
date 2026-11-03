@@ -348,3 +348,44 @@ tr.con .logit .tok { font-size: 10.5px; }
 .ex .ctx .v { flex: none; width: 34px; text-align: right; font: 10.5px var(--mono); color: var(--faint); font-variant-numeric: tabular-nums; }
 .ex .lrow { margin-top: 6px; }
 .ex .chip { cursor: default; } .ex .chip:hover { background: var(--raise); }
+
+/* live view: brain, layer maps and timeline (live.js) */
+body.live #list, body.live #focus, body.live #list-tab, body.live #focus-tab, body.live #layer,
+body.live #layout-mode, body.live #web-mode, body.live #web-z { display: none !important; }
+#live-view { overflow: hidden; }
+.lv-bar { position: absolute; top: 8px; left: 12px; right: 352px; display: flex; gap: 10px; align-items: center; z-index: 3; }
+.lv-text { flex: 1; min-width: 120px; }
+.lv-bar .seg button { white-space: nowrap; }
+.lv-max { width: 52px; }
+.lv-chat { display: flex; gap: 4px; align-items: center; font-size: 12px; }
+.lv-go { background: var(--raise); padding: 5px 14px; border-radius: 4px; }
+.lv-go:hover { background: rgba(255,255,255,.12); }
+.lv-state { font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 260px; }
+.lv-stage { position: absolute; top: 48px; left: 0; right: 340px; bottom: 150px; }
+.lv-stage canvas { position: absolute; inset: 0; }
+.lv-legend { position: absolute; left: 14px; bottom: 8px; font-size: 11px; pointer-events: none; }
+.lv-tip { display: none; position: absolute; padding: 6px 9px; font-size: 12px; pointer-events: none; }
+.lv-side { top: 52px; right: 12px; bottom: 162px; width: 320px; display: flex; flex-direction: column; padding: 10px; overflow: hidden; }
+.lv-head { font-size: 13px; padding-bottom: 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lv-maps { width: 100%; flex: none; cursor: pointer; position: static; }
+.lv-subhead { font-size: 11px; padding: 10px 0 4px; }
+.lv-top { flex: 1; overflow-y: auto; }
+.lv-top li { grid-template-columns: 82px 40px 1fr; padding: 3px 4px; }
+.lv-time { left: 12px; right: 12px; bottom: 12px; height: 140px; display: flex; flex-direction: column; padding: 8px 10px; gap: 6px; }
+.lv-transport { display: flex; gap: 10px; align-items: center; font-size: 13px; }
+.lv-transport button { color: var(--dim); min-width: 22px; }
+.lv-transport button:hover, .lv-transport button.on { color: var(--ink); }
+.lv-follow.on { color: #38c8ff !important; }
+.lv-pos { margin-left: auto; font-size: 12px; }
+.lv-heat { position: static; flex: 1; width: 100%; height: auto; min-height: 40px; border-radius: 3px; cursor: ew-resize; touch-action: none; }
+.lv-toks { height: 24px; overflow-x: auto; overflow-y: hidden; white-space: nowrap; font: 12px var(--mono); scrollbar-width: none; }
+.lv-toks span { padding: 1px 1px; cursor: pointer; border-radius: 2px; white-space: pre; }
+.lv-toks span.p { color: var(--dim); }
+.lv-toks span.sp { color: var(--faint); }
+.lv-toks span.on { background: #fff; color: #000; }
+.lv-toks span:hover { background: var(--raise); }
+@media (max-width: 760px) {
+  .lv-bar { right: 12px; flex-wrap: wrap; }
+  .lv-stage { right: 0; bottom: 330px; top: 92px; }
+  .lv-side { top: auto; bottom: 162px; height: 160px; left: 12px; width: auto; }
+}

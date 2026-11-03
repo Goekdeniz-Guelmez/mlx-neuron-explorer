@@ -1,6 +1,7 @@
 import { createMap } from "./map3d.js?v=78";
 import { createScatter } from "./scatter.js?v=39";
-import { t, tp, initI18n, applyTranslations, getLang, localizeError } from "./i18n.js?v=4";
+import { t, tp, initI18n, applyTranslations, getLang, localizeError } from "./i18n.js?v=5";
+import { createLive } from "./live.js?v=2";
 
 const $ = s => document.querySelector(s);
 const api = async (p, body) => {
@@ -211,8 +212,13 @@ function setView(v) {
   document.querySelectorAll("#views button").forEach(x => x.classList.toggle("on", x.dataset.view === v));
   $("#map-view").classList.toggle("on", v === "map");
   $("#embed-view").classList.toggle("on", v === "embed");
+  $("#live-view").classList.toggle("on", v === "live");
+  document.body.classList.toggle("live", v === "live");
   if (v === "embed") loadEmbeddings();
+  if (v === "live") (live ||= createLive($("#live-view"), arch, { onOpen: (l, n) => { setView("map"); openNeuron(l, n); } })).resize();
 }
+let live = null;
+$("#lang").addEventListener("change", () => live?.label());
 const layerSel = $("#layer");
 for (let l = 0; l < arch.n_layers; l++) {
   const o = document.createElement("option"); o.value = l;

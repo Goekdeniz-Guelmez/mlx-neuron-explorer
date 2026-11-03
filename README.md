@@ -38,6 +38,11 @@ The R and J++ lens rows read the maps of [bubskee/qwen3.5-4b-r-jpp-lenses](https
   connections, a name, and where it fires on web text: its strongest FineFineWeb contexts per sign, each token shaded
   by the neuron's activation, and the domains it concentrates in.
 - **embeddings**: UMAP of a layer's rollouts, coloured by neuron, prompt, dose or kind.
+- **live**: type a prompt and watch the model read it and write a reply, token by token as it runs. Every layer's MLP
+  shows as a slice of a brain (layer 0 at the back), cells glowing amber above a neuron's usual range and magenta
+  below it; beside it, each layer's activation map for the current token and its strongest neurons (click one to open
+  it). The timeline below holds every token's per-layer activity: drag to scrub, play at ½× to 8×, step with the
+  arrow keys, or follow the stream live.
 - **language**: the interface follows the browser language on first visit; the menu at the right of the header
   switches between English and Simplified Chinese (the choice is kept in this browser). Translations live in
   `explorer/static/i18n.js`.

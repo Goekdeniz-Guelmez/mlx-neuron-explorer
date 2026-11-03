@@ -727,6 +727,96 @@ def layout(kind: str = "writes"):
     return {"available": True, "shape": list(cell.shape), "cell": base64.b64encode(cell.tobytes()).decode()}
 
 
+LIVE_GRID = 24  # each layer's sheet pooled into LIVE_GRID x LIVE_GRID cells for /api/live
+_live = {}
+
+
+def live_bins():
+    """Per layer, which pooled cell each neuron falls in: the writes layout's grid (similar writers together) when it
+    is built, else neuron order. Returns (order, starts): neurons sorted by (layer, cell) for np.*.reduceat."""
+    if "order" not in _live:
+        L, N, G = ARCH["n_layers"], ARCH["inter"], LIVE_GRID
+        side = int(np.ceil(np.sqrt(N)))
+        path = os.path.join(CACHE, "layout_writes.npz")
+        cell = np.load(path)["cell"].astype(np.int64) if os.path.exists(path) else np.tile(np.arange(N), (L, 1))
+        b = (cell // side) * G // side * G + (cell % side) * G // side  # [L, N] pooled cell
+        key = (np.arange(L)[:, None] * G * G + b).ravel()
+        order = np.argsort(key, kind="stable")
+        starts = np.searchsorted(key[order], np.arange(L * G * G))
+        if len(np.unique(key)) < L * G * G:  # a grid this fine for a small sheet: some cells empty, pool by order
+            key = (np.arange(L)[:, None] * G * G + np.arange(N)[None] * G * G // N).ravel()
+            order = np.argsort(key, kind="stable")
+            starts = np.searchsorted(key[order], np.arange(L * G * G))
+        _live.update(order=order, starts=starts)
+    return _live["order"], _live["starts"]
+
+
+def live_scale(a):
+    """Activations [L, N] as multiples of each neuron's typical range over web text (act_scale.npz): positive / its
+    typical max, negative / its typical |min|. Without the ranges, each layer over its own 99.9th percentile."""
+    if "pos" not in _live and os.path.exists(ACT_SCALE):
+        z = np.load(ACT_SCALE)
+        _live["pos"], _live["neg"] = np.maximum(z["pos"], 1e-6), np.maximum(-z["neg"], 1e-6)
+    if "pos" in _live:
+        return np.where(a > 0, a / _live["pos"], a / _live["neg"])
+    return a / np.maximum(np.percentile(np.abs(a), 99.9, axis=1, keepdims=True), 1e-6)
+
+
+@app.post("/api/live")
+async def live(req: Request):
+    """Activations while the model reads a text and then writes a reply, one event per token as it happens:
+    {tok, i, prompt, cells: base64 int8 [layers, LIVE_GRID^2] (the strongest signed score in each pooled cell, x 64,
+    clipped at +-2), top: the token's strongest neurons}. Scores as in live_scale."""
+    import base64
+    b = await req.json()
+    loop, q, cancel = asyncio.get_running_loop(), asyncio.Queue(), threading.Event()
+    text, chat, max_new = b["text"], b.get("chat", True), min(int(b.get("max_new", 120)), 600)
+
+    def work():
+        try:
+            ids = (rt.chat_ids(text) if chat else rt.tok(text).input_ids)[:MAX_INFER_TOKENS]
+            order, starts = live_bins()
+            idx = rt.steer_index() or rt.lens_index()
+            vocab = rt.vocab_strings()
+            L, G = ARCH["n_layers"], LIVE_GRID
+            loop.call_soon_threadsafe(q.put_nowait, {"meta": {"layers": L, "grid": G, "prompt": len(ids)}})
+            for i, t, a, is_prompt in rt.live_stream(ids, 0 if b.get("read_only") else max_new, cancel):
+                sc = live_scale(a)
+                flat = sc.ravel()[order]
+                hi, lo = np.maximum.reduceat(flat, starts), np.minimum.reduceat(flat, starts)
+                cells = np.where(hi >= -lo, hi, lo).reshape(L, G * G)
+                q8 = np.clip(np.round(cells * 64), -127, 127).astype(np.int8)
+                k = np.argpartition(-np.abs(sc).ravel(), 12)[:12]
+                k = k[np.argsort(-np.abs(sc).ravel()[k])]
+                top = [{"layer": int(x // sc.shape[1]), "n": int(x % sc.shape[1]), "score": round(float(sc.ravel()[x]), 2),
+                        "act": round(float(a.ravel()[x]), 3)} for x in k]
+                if idx is not None:
+                    for c in top:
+                        side = "up" if c["score"] > 0 else "down"
+                        c["lens"] = [vocab[v] for v in idx[side][c["layer"], c["n"], :3]]
+                ev = {"i": i, "tok": rt.tok.decode([t]), "prompt": is_prompt, "cells": base64.b64encode(q8.tobytes()).decode(), "top": top}
+                loop.call_soon_threadsafe(q.put_nowait, ev)
+            loop.call_soon_threadsafe(q.put_nowait, {"done": True})
+        except Exception as e:
+            loop.call_soon_threadsafe(q.put_nowait, {"done": True, "error": repr(e)})
+
+    threading.Thread(target=work, daemon=True).start()
+
+    async def events():
+        try:
+            while True:
+                ev = await q.get()
+                yield f"data: {json.dumps(ev)}\n\n"
+                if ev.get("done"):
+                    break
+                if await req.is_disconnected():
+                    break
+        finally:
+            cancel.set()
+
+    return StreamingResponse(events(), media_type="text/event-stream")
+
+
 def cone_links(layer, n, k=2, zmin=15, cap=20000, first=None, hops=None):
     """Connection cone of one neuron: everything it writes into, then what those write into, out to the last layer;
     and everything that writes into it, back to layer 0. Each side only moves one way. The first hop takes all of the

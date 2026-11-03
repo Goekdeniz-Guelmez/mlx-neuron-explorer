@@ -463,6 +463,32 @@ class MLXRuntime(Runtime):
                 self._capture_full = None
                 self._capture_heads = None
 
+    def live_stream(self, ids, max_new=0, cancel=None):
+        """runtime.live_stream on MLX: the prompt in one pass, then one cached greedy step per new token."""
+        self.ensure_loaded()
+        with self.lock:
+            eos = self.tok.convert_tokens_to_ids("<|im_end|>")
+            cache = self._mlm.make_cache()
+            try:
+                self._capture_full = {}
+                logits = self._mlm(mx.array([ids]), cache=cache)[0, -1]
+                acts = np.stack([_np(self._capture_full[l]) for l in sorted(self._capture_full)])  # [L, T, N]
+                for p, t in enumerate(ids):
+                    if cancel is not None and cancel.is_set():
+                        return
+                    yield p, t, acts[:, p], True
+                pos = len(ids)
+                for _ in range(max_new):
+                    nxt = int(mx.argmax(logits).item())
+                    if nxt == eos or (cancel is not None and cancel.is_set()):
+                        return
+                    self._capture_full = {}
+                    logits = self._mlm(mx.array([[nxt]]), cache=cache)[0, -1]
+                    yield pos, nxt, np.stack([_np(self._capture_full[l][-1]) for l in sorted(self._capture_full)]), False
+                    pos += 1
+            finally:
+                self._capture_full = None
+
     # ---------- logit-lens index over every neuron ----------
     def build_lens_index(self, path, k=12, chunk=1024):
         self.ensure_loaded()
