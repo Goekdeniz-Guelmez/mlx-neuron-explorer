@@ -21,7 +21,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(ROOT, "sweep"))
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from rank import compute_units  # noqa: E402
-from runtime import CACHE, MODEL, NO_MODEL, Runtime  # noqa: E402
+from runtime import CACHE, MODEL, NO_MODEL, make_runtime  # noqa: E402
 
 RUNS, STATS = os.path.join(ROOT, "runs"), os.path.join(ROOT, "stats")
 # the agent's neuronary.org tools (agent_mcp.py) read the person's token from here when set
@@ -62,7 +62,7 @@ async def no_store(request, call_next):
         resp.headers["Cache-Control"] = "no-store"
     return resp
 
-rt = Runtime(STATS)
+rt = make_runtime(STATS)
 _cache = {}
 
 

@@ -18,6 +18,7 @@ from transformers.models.qwen3_5.modeling_qwen3_5 import apply_rotary_pos_emb, l
 
 MODEL = os.environ.get("EXPLORER_MODEL", "Qwen/Qwen3.5-4B")
 NO_MODEL = bool(os.environ.get("EXPLORER_NO_MODEL"))  # cache-only: never download or load weights
+BACKEND = os.environ.get("EXPLORER_BACKEND", "auto")  # torch, mlx, or auto (mlx on Apple Silicon when installed)
 REFERENCE_TEXT = (
     "The history of the region is long and varied. Farmers settled the river valley first, then traders arrived, "
     "and by the twelfth century the town had a market, a bridge, and a quarrel with its neighbours over tolls. "
@@ -1080,3 +1081,21 @@ class Runtime:
             finally:
                 self._capture_full = None
                 self._capture_heads = None
+
+
+def make_runtime(stats_dir):
+    """The live model on the chosen backend: MLX (runtime_mlx.py) or torch (this file)."""
+    import platform
+    want = BACKEND
+    if want == "auto":
+        want = "torch"
+        if platform.system() == "Darwin" and platform.machine() == "arm64":
+            try:
+                import mlx_lm  # noqa: F401
+                want = "mlx"
+            except ImportError:
+                pass
+    if want == "mlx":
+        from runtime_mlx import MLXRuntime
+        return MLXRuntime(stats_dir)
+    return Runtime(stats_dir)
