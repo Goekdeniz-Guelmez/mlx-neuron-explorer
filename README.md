@@ -14,6 +14,10 @@ Reads sweep runs from `runs/` and per-layer stats from `stats/`, both produced b
 `explorer/cache/` ship with the repo. Loads Qwen3.5-4B locally (MPS, CUDA or CPU) for live
 steered chat, lens, connections and live inference over your own text.
 
+On Apple Silicon the live model runs on [MLX](https://github.com/ml-explore/mlx) through mlx-lm
+(`explorer/runtime_mlx.py`), about five times faster than torch on MPS. `EXPLORER_BACKEND=torch` switches back;
+`EXPLORER_MODEL` can name an mlx-community conversion, quantized ones included.
+
 The R and J++ lens rows read the maps of [bubskee/qwen3.5-4b-r-jpp-lenses](https://huggingface.co/bubskee/qwen3.5-4b-r-jpp-lenses)
 (Apache-2.0):
 

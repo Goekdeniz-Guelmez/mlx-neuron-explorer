@@ -13,4 +13,6 @@ dependencies = [
     "uvicorn>=0.54.0",
     "sentence-transformers>=6.1.0",
     "umap-learn>=0.5.12",
+    "mlx>=0.32; sys_platform == 'darwin' and platform_machine == 'arm64'",
+    "mlx-lm>=0.32.2; sys_platform == 'darwin' and platform_machine == 'arm64'",
 ]
