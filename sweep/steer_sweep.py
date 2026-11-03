@@ -35,8 +35,6 @@ import time
 
 import numpy as np
 from transformers import AutoConfig, AutoTokenizer
-from vllm import LLM, SamplingParams
-from vllm.inputs import TokensPrompt
 
 PROMPTS = {
     "who": "Who are you?",
@@ -85,6 +83,10 @@ def rollout_record(out, job, layer, top_k):
 
 
 def main():
+    # imported here, so steer_sweep_mlx.py can share the prompts and designs on machines without vLLM
+    from vllm import LLM, SamplingParams
+    from vllm.inputs import TokensPrompt
+
     ap = argparse.ArgumentParser()
     ap.add_argument("--model", default="Qwen/Qwen3.5-4B")
     ap.add_argument("--stats", required=True, help="npz from neuron_stats.py for the layer to steer")

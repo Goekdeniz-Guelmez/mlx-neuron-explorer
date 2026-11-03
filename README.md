@@ -68,6 +68,19 @@ Runs on a CUDA 13 GPU pod with the steering fork of vLLM ([RhizoNymph/vllm](http
         --neurons all --random-controls 256 --run q35-4b-L22
     sweep/run_depth.sh "4 9 13 17" 384 64                     # random-subset sweep across several layers
 
+On a Mac (Apple Silicon), the same steps run on MLX and write the same files, under the names the explorer reads for
+that size (`stats/q35-<size>_L<l>.npz`; `runs/` for the 4B, `runs/<size>/` otherwise):
+
+    uv run python sweep/neuron_stats_mlx.py --model 2b --layers 12 --tokens 200000
+    uv run python sweep/steer_sweep_mlx.py --model 2b --stats stats/q35-2b_L12.npz --design main_rel --dose-unit rel \
+        --neurons random:256 --random-controls 64 --run q35-2b-L12
+    uv run python sweep/rank.py runs/2b/q35-2b-L12.jsonl --out runs/2b/q35-2b-L12.units.jsonl
+    uv run python explorer/build_embeddings.py runs/2b/q35-2b-L12.jsonl
+    uv run python sweep/steer_lens_mlx.py --model 2b                      # every layer; then the steer lens index
+
+`steer_sweep_mlx.py` keeps no activation captures. A full 4B layer (about 92k rollouts) takes hours on a laptop, so
+start with a random subset.
+
 `main_rel` doses are fractions of the median residual norm leaving the layer: {who, snake, orange} × {−0.7, +0.5, +0.8}
 and {free} × {+3}, plus one unsteered baseline per prompt.
 
