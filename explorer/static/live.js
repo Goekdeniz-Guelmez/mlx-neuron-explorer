@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
-import { t } from "./i18n.js?v=5";
+import { t } from "./i18n.js?v=6";
 
 // live view: the model reads a text and writes a reply while every layer's MLP is watched, one token at a time
 // (/api/live). Each layer's sheet arrives pooled into grid x grid cells (the strongest signed score in each cell,

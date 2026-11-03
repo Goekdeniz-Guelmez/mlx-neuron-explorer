@@ -29,9 +29,14 @@ The R and J++ lens rows read the maps of [bubskee/qwen3.5-4b-r-jpp-lenses](https
 
     hf download bubskee/qwen3.5-4b-r-jpp-lenses --local-dir explorer/cache/rjpp
 
-- **map**: the model's layers in perspective, attention and MLP per layer, one point per neuron. Hover shows a neuron's
-  steer lens and R lens; click opens it; click a layer's label to view its sheet face-on. `writes` places
-  neurons with similar down-projection columns next to each other.
+- **map**: the model's layers in rows the residual stream snakes through (layer 0 bottom left), each layer drawn as the
+  block it is: norm, the projections side by side (q/k/v on full-attention layers; qkv, z and b/a with the short conv
+  on linear ones), the attention core with one line per head, its gate and output projection, the residual add, then
+  the MLP's gate and up projections, its neuron sheet (one point per neuron) and down projection. Hover a part for its
+  shapes; part names appear as you zoom in. The strip along the bottom jumps to a layer (`[` and `]` step, ⌂ for the
+  overview); `?perrow=` sets layers per row. Hover shows a neuron's steer lens and R lens; click opens it; click a
+  layer's label to view its sheet face-on. `writes` places neurons with similar down-projection columns next to each
+  other.
 - **list**: units ranked by word-cluster mass against random-direction controls; `lens` searches the steer, R and logit
   lenses for a token, `fires` runs your text through the model and filters neurons by activation.
 - **neuron**: steered rollouts per prompt and dose, a three-column multi-turn steered chat (−, 0, +), lens and

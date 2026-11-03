@@ -33,7 +33,9 @@ _cfg = AutoConfig.from_pretrained(MODEL).get_text_config()
 ARCH = {"n_layers": _cfg.num_hidden_layers, "hidden": _cfg.hidden_size, "inter": _cfg.intermediate_size,
         "layer_types": list(_cfg.layer_types), "attn_heads": _cfg.num_attention_heads,
         "kv_heads": _cfg.num_key_value_heads, "linear_k_heads": _cfg.linear_num_key_heads,
-        "linear_v_heads": _cfg.linear_num_value_heads}
+        "linear_v_heads": _cfg.linear_num_value_heads, "head_dim": _cfg.head_dim,
+        "linear_k_dim": _cfg.linear_key_head_dim, "linear_v_dim": _cfg.linear_value_head_dim,
+        "conv_kernel": _cfg.linear_conv_kernel_dim, "vocab": _cfg.vocab_size}
 
 app = FastAPI()
 

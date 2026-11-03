@@ -1,7 +1,7 @@
-import { createMap } from "./map3d.js?v=78";
+import { createMap } from "./map3d.js?v=83";
 import { createScatter } from "./scatter.js?v=39";
-import { t, tp, initI18n, applyTranslations, getLang, localizeError } from "./i18n.js?v=5";
-import { createLive } from "./live.js?v=2";
+import { t, tp, initI18n, applyTranslations, getLang, localizeError } from "./i18n.js?v=6";
+import { createLive } from "./live.js?v=3";
 
 const $ = s => document.querySelector(s);
 const api = async (p, body) => {
@@ -83,6 +83,7 @@ const map = createMap($("#map"), $("#layer-labels"), arch, {
     }
     if (p.type === "block") {
       if (hoverKey) { hoverKey = null; map.setHoverConnections(null); }
+      if (p.part) return showTip(x, y, `L${p.layer} ${p.part.name}`, p.part.desc(t));
       const full = p.full;
       return showTip(x, y, `L${p.layer}`, full ? t("map.fullAttention", { q: arch.attn_heads, kv: arch.kv_heads }) : t("map.linearAttention", { k: arch.linear_k_heads, v: arch.linear_v_heads }));
     }
@@ -567,7 +568,8 @@ function saveFocus() {
 }
 function restoreFocus() {
   let f = null; try { f = JSON.parse(localStorage.getItem("explorer.focus") || "null"); } catch {}
-  if (!f) return;
+  // saved under another model size: not a unit of this one
+  if (!f || f.layer >= arch.n_layers || (f.kind !== "head" && f.n >= arch.inter)) return;
   if (f.kind === "head") openHead(f.layer, f.n); else openNeuron(f.layer, f.n, "neuron", false);
 }
 function fromHash() {
