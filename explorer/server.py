@@ -21,12 +21,13 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(ROOT, "sweep"))
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from rank import compute_units  # noqa: E402
-from runtime import CACHE, MODEL, NO_MODEL, make_runtime  # noqa: E402
+from runtime import CACHE, MODEL, NO_MODEL, TAG, make_runtime  # noqa: E402
 
-RUNS, STATS = os.path.join(ROOT, "runs"), os.path.join(ROOT, "stats")
+# sweeps and names of a size other than the 4B live under its own name
+RUNS, STATS = os.path.join(ROOT, "runs", *([] if TAG == "4b" else [TAG])), os.path.join(ROOT, "stats")
 # the agent's neuronary.org tools (agent_mcp.py) read the person's token from here when set
 NEURONARY_ENV = {k: os.environ[k] for k in ("NEURONARY_TOKEN", "NEURONARY_API") if os.environ.get(k)}
-NAMES = os.path.join(ROOT, "explorer", "names.json")
+NAMES = os.path.join(ROOT, "explorer", "names.json") if TAG == "4b" else os.path.join(CACHE, "names.json")
 PORT = int(os.environ.get("PORT", 8791))
 _cfg = AutoConfig.from_pretrained(MODEL).get_text_config()
 ARCH = {"n_layers": _cfg.num_hidden_layers, "hidden": _cfg.hidden_size, "inter": _cfg.intermediate_size,
@@ -294,7 +295,7 @@ async def steer(req: Request):
     return StreamingResponse(events(), media_type="text/event-stream")
 
 
-LENS_INDEX = os.path.join(ROOT, "explorer", "cache", "lens_index.npz")
+LENS_INDEX = os.path.join(CACHE, "lens_index.npz")
 _lens = {}
 
 
@@ -355,7 +356,7 @@ async def search(q: str, limit: int = 300):
     return {"ready": True, "results": res, "tokens": int(len(match)), "total": len(out)}
 
 
-ACT_SCALE = os.path.join(ROOT, "explorer", "cache", "act_scale.npz")
+ACT_SCALE = os.path.join(CACHE, "act_scale.npz")
 MAX_INFER_TOKENS = 1024  # [32, T, 9216] float32 activations plus scores: about 2.4 GB at this length
 
 
@@ -719,7 +720,7 @@ def infer_paths(pos: int, top: int = 300, min: float = 1.0):
 def layout(kind: str = "writes"):
     """Seriated grid layout: cell index (row * side + col) for every neuron, base64 int16, layer-major."""
     import base64
-    path = os.path.join(ROOT, "explorer", "cache", f"layout_{kind}.npz")
+    path = os.path.join(CACHE, f"layout_{kind}.npz")
     if not os.path.exists(path):
         return {"available": False}
     cell = np.load(path)["cell"].astype(np.int16)
@@ -851,7 +852,7 @@ def act_range(layer, n):
             "over_tokens": _act["tokens"], "source": "FineWeb-Edu"}
 
 
-FFW = os.path.join(ROOT, "explorer", "cache", "ffw")  # sweep/finefineweb.py output: corpus.npz, urls.json, acts.npz
+FFW = os.path.join(CACHE, "ffw")  # sweep/finefineweb.py output: corpus.npz, urls.json, acts.npz
 _ffw = {}
 
 

@@ -16,9 +16,10 @@ URL = os.environ.get("EXPLORER_URL", "http://127.0.0.1:8791")
 CHAT = os.environ.get("EXPLORER_CHAT", "")
 NEURONARY = os.environ.get("NEURONARY_API", "https://mcczbdcymyhzfputyqcr.supabase.co/functions/v1/api")
 MODEL = os.environ.get("EXPLORER_MODEL", "Qwen/Qwen3.5-4B")
+MODEL = {s: f"Qwen/Qwen3.5-{s.upper()}" for s in ("0.8b", "2b", "4b", "9b", "27b")}.get(MODEL.lower(), MODEL)  # as runtime.SIZES
 
-LN = {"layer": {"type": "integer", "description": "layer, 0-31"}, "n": {"type": "integer", "description": "neuron, 0-9215"}}
-HEAD = {"layer": {"type": "integer", "description": "layer, 0-31"}, "head": {"type": "integer", "description": "head: 0-15 on full-attention layers, 0-31 on linear-attention layers"}}
+LN = {"layer": {"type": "integer", "description": "layer, from 0 (`overview` gives the count)"}, "n": {"type": "integer", "description": "neuron within the layer's MLP, from 0"}}
+HEAD = {"layer": {"type": "integer", "description": "layer, from 0 (`overview` gives the count)"}, "head": {"type": "integer", "description": "head index on that layer (`overview` gives the head counts per layer type)"}}
 TOOLS = [
     {"name": "overview", "description": "Model architecture and which layers have sweep runs (rollouts and rankings).",
      "inputSchema": {"type": "object", "properties": {}}},

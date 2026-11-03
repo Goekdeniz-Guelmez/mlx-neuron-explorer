@@ -7,6 +7,7 @@ unit as the sweep's `--dose-unit rel`.
 """
 import json
 import os
+import re
 import sqlite3
 import threading
 
@@ -16,7 +17,19 @@ import torch.nn.functional as F
 from transformers import AutoTokenizer, Qwen3_5ForConditionalGeneration
 from transformers.models.qwen3_5.modeling_qwen3_5 import apply_rotary_pos_emb, l2norm
 
+# dense Qwen3.5 sizes by short name (EXPLORER_MODEL=2b); the MoE sizes have no MLP neurons to explore
+SIZES = {s: f"Qwen/Qwen3.5-{s.upper()}" for s in ("0.8b", "2b", "4b", "9b", "27b")}
 MODEL = os.environ.get("EXPLORER_MODEL", "Qwen/Qwen3.5-4B")
+MODEL = SIZES.get(MODEL.lower(), MODEL)
+
+
+def model_tag(name):
+    """Short name of a model's size ("4b", "0.8b"), or of the repo when it names none."""
+    m = re.search(r"qwen3\.5-([\d.]+b)", name.lower())
+    return m.group(1) if m else re.sub(r"[^a-z0-9.]+", "-", name.lower().split("/")[-1])
+
+
+TAG = model_tag(MODEL)
 NO_MODEL = bool(os.environ.get("EXPLORER_NO_MODEL"))  # cache-only: never download or load weights
 BACKEND = os.environ.get("EXPLORER_BACKEND", "auto")  # torch, mlx, or auto (mlx on Apple Silicon when installed)
 REFERENCE_TEXT = (
@@ -27,7 +40,9 @@ REFERENCE_TEXT = (
 )
 
 
-CACHE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "cache")
+SHARED = os.path.join(os.path.dirname(os.path.abspath(__file__)), "cache")  # what every size shares: vocab.json
+# the shipped caches are the 4B's; any other size builds its own in cache/<size>/
+CACHE = SHARED if TAG == "4b" else os.path.join(SHARED, TAG)
 RJPP = os.path.join(CACHE, "rjpp")  # bubskee/qwen3.5-4b-r-jpp-lenses, downloaded here
 
 
@@ -51,7 +66,7 @@ class Runtime:
         self._lens_idx = None
         self._con_idx = None
         self.lock = threading.RLock()  # re-entrant: a locked method can call another
-        self.model = self.tok = None
+        self.model = self.tok = self.lm = None
         self.status = "idle"
         self.resid_p50 = {}
         self._push = None  # [(layer, neuron, mode, per-row values tensor)], any number of neurons at once (neuron None = all)
@@ -558,7 +573,7 @@ class Runtime:
     def layer_resid_p50(self, layer):
         if layer in self.resid_p50:
             return self.resid_p50[layer]
-        path = os.path.join(self.stats_dir, f"q35-4b_L{layer}.npz")
+        path = os.path.join(self.stats_dir, f"q35-{TAG}_L{layer}.npz")
         if os.path.exists(path):
             v = float(np.load(path)["resid_norm_q10_50_90"][1])
         else:
@@ -849,7 +864,7 @@ class Runtime:
         transported from block `layer`'s output to block 31's, then the final RMSNorm (1 + weight) and LM head, all FP32,
         top-k tokens, filtered like the release reader by default. None for block 31 (the lenses' target) or when the
         release isn't downloaded. Read from the precomputed indexes when they hold k tokens, else computed live."""
-        if layer >= 31:
+        if layer >= 31:  # the 4B release; other sizes have no maps, so the live path returns None
             return None
         ri, ji = self.r_index(), self.jpp_index()
         if filtered and ri is not None and ji is not None and k <= ri["up"].shape[-1]:
@@ -991,7 +1006,7 @@ class Runtime:
 
     def vocab_strings(self):
         if getattr(self, "_vocab", None) is None:
-            path = os.path.join(CACHE, "vocab.json")
+            path = os.path.join(SHARED, "vocab.json")
             if os.path.exists(path):
                 self._vocab = json.load(open(path))
             else:

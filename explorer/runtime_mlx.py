@@ -200,6 +200,8 @@ class MLXRuntime(Runtime):
             self.tok = AutoTokenizer.from_pretrained(base.MODEL)
             lm = m.language_model if hasattr(m, "language_model") else m
             inner = lm.model
+            if not hasattr(inner.layers[0].mlp, "down_proj"):
+                raise RuntimeError(f"{base.MODEL} is a mixture-of-experts model: the explorer needs dense MLP neurons")
             for i, L in enumerate(inner.layers):
                 L.mlp = _MLP(L.mlp, self, i)
                 if L.is_linear:
@@ -301,7 +303,7 @@ class MLXRuntime(Runtime):
         if layer in self.resid_p50:
             return self.resid_p50[layer]
         import os
-        path = os.path.join(self.stats_dir, f"q35-4b_L{layer}.npz")
+        path = os.path.join(self.stats_dir, f"q35-{base.TAG}_L{layer}.npz")
         if os.path.exists(path):
             v = float(np.load(path)["resid_norm_q10_50_90"][1])
         else:

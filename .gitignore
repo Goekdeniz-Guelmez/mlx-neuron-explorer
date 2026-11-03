@@ -33,3 +33,9 @@ explorer/cache/rjpp/
 explorer/cache/jlens/
 explorer/cache/ffw/
 explorer/cache/slens/
+
+# caches of sizes other than the 4B, built on first use
+explorer/cache/0.8b/
+explorer/cache/2b/
+explorer/cache/9b/
+explorer/cache/27b/

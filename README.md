@@ -18,6 +18,12 @@ On Apple Silicon the live model runs on [MLX](https://github.com/ml-explore/mlx)
 (`explorer/runtime_mlx.py`), about five times faster than torch on MPS. `EXPLORER_BACKEND=torch` switches back;
 `EXPLORER_MODEL` can name an mlx-community conversion, quantized ones included.
 
+Other dense Qwen3.5 sizes run too: `EXPLORER_MODEL=0.8b`, `2b`, `4b`, `9b` or `27b` (or any repo of one, such as
+`mlx-community/Qwen3.5-9B-4bit`). The caches that ship are the 4B's; another size builds its logit-lens index and
+activation ranges into `explorer/cache/<size>/` on first start and reads sweeps from `runs/<size>/`. The steer, R, J++
+and S lenses, the writes layout and the web contexts exist only for the 4B until their scripts are run for that size.
+The MoE sizes have no dense MLP neurons and are not supported.
+
 The R and J++ lens rows read the maps of [bubskee/qwen3.5-4b-r-jpp-lenses](https://huggingface.co/bubskee/qwen3.5-4b-r-jpp-lenses)
 (Apache-2.0):
 
